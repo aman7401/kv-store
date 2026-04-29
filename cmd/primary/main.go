@@ -13,49 +13,19 @@ import (
 	"github.com/aman7401/kv-store/internal/api"
 	"github.com/aman7401/kv-store/internal/replication"
 	"github.com/aman7401/kv-store/internal/store"
-	"github.com/aman7401/kv-store/internal/wal"
 )
-
-const walPath = "wal/primary.wal"
 
 func main() {
 	addr := flag.String("addr", ":8080", "primary listen address")
 	flag.Parse()
 
-	if err := os.MkdirAll("wal", 0755); err != nil {
-		log.Fatalf("wal dir: %v", err)
-	}
-
 	kv := store.New()
-
-	// Replay WAL on restart
-	wal.Replay(walPath, func(r wal.Record) error {
-		switch r.Op {
-		case wal.OpSet:
-			if !r.ExpiresAt.IsZero() && time.Now().After(r.ExpiresAt) {
-				return nil
-			}
-			kv.SetWithExpiry(r.Key, r.Value, r.ExpiresAt)
-		case wal.OpDelete:
-			kv.Delete(r.Key)
-		}
-		return nil
-	})
-
-	w, err := wal.Open(walPath)
-	if err != nil {
-		log.Fatalf("open wal: %v", err)
-	}
-	defer w.Close()
 
 	primary := replication.NewPrimary(kv, *addr)
 
-	// Wrap API handler so writes also go through replication log
 	mux := http.NewServeMux()
-	primary.RegisterRoutes(mux)
-
-	// Regular KV HTTP API (reads from local store, writes via primary)
-	api.New(kv, w).RegisterRoutes(mux)
+	primary.RegisterRoutes(mux)                  // /replication/* endpoints
+	api.NewPrimary(kv, primary).RegisterRoutes(mux) // /get /set /delete — writes go through replication log
 
 	srv := &http.Server{
 		Addr:         *addr,
