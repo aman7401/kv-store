@@ -7,10 +7,10 @@ bin/
 *.test
 *.prof
 
-# Data directories
+# Data directories (runtime, not source)
 data/
-wal/
-sstables/
+/wal/
+/sstables/
 
 # IDE
 .idea/
