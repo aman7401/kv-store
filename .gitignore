@@ -1,0 +1,21 @@
+# Binaries
+bin/
+*.exe
+*.out
+
+# Go build cache
+*.test
+*.prof
+
+# Data directories
+data/
+wal/
+sstables/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
